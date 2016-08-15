@@ -4,7 +4,17 @@
 #include <stdio.h>
 #include <strings.h>
 
-#define READBUF 256
+#define READ_SIZE 256
+#define TREE_SIZE 512
+struct node 
+{
+  unsigned int top;
+  unsigned int left;
+  unsigned int right;
+  unsigned int code;
+  unsigned int freq;
+} tree[TREE_SIZE] = {0};
+
 int main(int argc, char *argv[])
 {
   int count;
@@ -47,7 +57,7 @@ int main(int argc, char *argv[])
 
           do
           {
-            bytes_read = fread(buf, 1, READBUF, f);
+            bytes_read = fread(buf, 1, READ_SIZE, f);
             fsize += bytes_read;
 
             for (i = 0; i < bytes_read; i++)
@@ -63,8 +73,29 @@ int main(int argc, char *argv[])
           
           for (i = 0; i < 256; i++)
           {
-            printf ("Code: %.2X Freq: %ld\n", i, freq_tbl[i]);
+            printf ("Code: %.2X: %ld", i, freq_tbl[i]);
+            if (i%8 == 0) printf("\n");
           }
+          /*Scaling frequencies*/
+          long scale = fsize / MAX_INT;
+
+          /*Fill tree leaves*/
+          int j = 0;
+
+          for (i = 0; i < 256; i++)
+          {
+            if (freq_tbl[i] > 0) 
+            {
+              tree[j].code = i;
+              tree[j].freq = (unsigned int)(freq_tbl[i]/scale)+1u;
+              j++;
+
+            }
+            printf ("Code: %.2X: %d", tree[j].code, tree[j].freq);
+
+            if (j%8 == 0) printf("\n");
+          }
+
         }
       }
       else
