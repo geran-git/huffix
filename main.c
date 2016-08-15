@@ -2,7 +2,10 @@
 
 */
 #include <stdio.h>
+#include <limits.h>
 #include <strings.h>
+#include <time.h>
+
 
 #define READ_SIZE 256
 #define TREE_SIZE 512
@@ -18,6 +21,11 @@ struct node
 int main(int argc, char *argv[])
 {
   int count;
+  time_t time1, time2;
+  char* c_time_string;
+
+    /* Obtain current time. */
+  time1 = time(NULL);
 
   printf ("\nHuffiX archiver - Version 1.0 - 2016\n");
 
@@ -34,10 +42,10 @@ int main(int argc, char *argv[])
   	/*Check mode option*/
   	if ( 0 == strcmp(argv[2], "-c"))
   	{
-      long freq_tbl[256] = {0};
+      long freq_tbl[256] = {0L};
       long fsize = 0L;
       long l = 0l;
-      unsigned char buf[READBUF] = {0};
+      unsigned char buf[READ_SIZE] = {0};
       int bytes_read = 0;
       int i = 0;
 
@@ -73,12 +81,15 @@ int main(int argc, char *argv[])
           
           for (i = 0; i < 256; i++)
           {
-            printf ("Code: %.2X: %ld", i, freq_tbl[i]);
-            if (i%8 == 0) printf("\n");
+            printf ("%.2X: %ld ", i, freq_tbl[i]);
+            if ((i+1)%8 == 0) printf("\n");
           }
           /*Scaling frequencies*/
-          long scale = fsize / MAX_INT;
+          long scale = fsize / (long)UINT_MAX;
+          scale =  (scale > 0) ? scale : 1;
 
+
+          printf ("Scaled frequency table %ld:\n", scale);
           /*Fill tree leaves*/
           int j = 0;
 
@@ -90,10 +101,10 @@ int main(int argc, char *argv[])
               tree[j].freq = (unsigned int)(freq_tbl[i]/scale)+1u;
               j++;
 
-            }
-            printf ("Code: %.2X: %d", tree[j].code, tree[j].freq);
+              printf ("%.2X: %d ", tree[j-1].code, tree[j-1].freq);
 
-            if (j%8 == 0) printf("\n");
+              if (j%8 == 0) printf("\n");
+            }
           }
 
         }
@@ -104,10 +115,6 @@ int main(int argc, char *argv[])
       }
   		/*Going to compress*/
   		printf ("Compressing, please wait...\n");
-      /* The main goal for this moment is to implement code lookup and transform bit sequence to bytes */
-      /* Lookup table is simple - array where code_value = bitcode[byte_to_encode] */
-      /* Let's fill table with codes later */
-
 
 
   	}
@@ -127,6 +134,8 @@ int main(int argc, char *argv[])
 	  printf("argv[%d] = %s\n", count, argv[count]);
 	}
     */
+   time2 = time(NULL);
+   printf("Completed in %f sec\n", difftime(time2, time1));
    return 0;
  }
 
