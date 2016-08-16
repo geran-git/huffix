@@ -149,8 +149,20 @@ int main(int argc, char *argv[])
 
 /*2. If two elements found create new node*/
             }
+            if (0 <= freq1 && 0<= freq2  )
+            {
+              tree[tree_cnt].freq = freq1 + freq2;
+              tree[tree_cnt].left = imin1;
+              tree[tree_cnt].right = imin2;
+              tree[imin1].top = tree_cnt;
+              tree[imin2].top = tree_cnt;
+              tree_cnt++;
+            }
 
-          } while ();
+
+
+            /*Only one free node found - tree completed */
+          } while (-1 != imin2);
 
         }
       }
