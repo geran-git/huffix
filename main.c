@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
             if ((i+1)%8 == 0) printf("\n");
           }
           /*Scaling frequencies*/
-          long scale = fsize / (long)UINT_MAX;
+          long scale = fsize / (long)(UINT_MAX)+256L;
           scale =  (scale > 0) ? scale : 1;
 
 
@@ -106,6 +106,51 @@ int main(int argc, char *argv[])
               if (j%8 == 0) printf("\n");
             }
           }
+          /*Building tree*/
+          int imin1, imin2;
+          do 
+          {
+            /*1. Determine two leaves with smallest frequencies*/
+            imin1 = -1;
+            imin2 = -1;
+            freq1 = 0;
+            freq2 = 0;
+            for (i = 0; i < tree_cnt; i++)
+            {
+              if ((-1 == imin1) && (-1 == imin2))
+              {
+               if (tree[i].freq > 0)
+               {
+                  imin1 = i;
+                  freq1 = tree[i].freq;
+               }
+
+              }
+              else if ((imin1 >= 0) && (-1 == imin2))
+              {
+               if (tree[i].freq > 0)
+               {
+                  imin2 = i;
+                  freq2 = tree[i].freq;
+               }
+
+              }
+              else
+              {
+                if (freq1 < tree[i].freq)
+                {
+                  freq2 = freq1;
+                  imin2 = imin1;
+                  imin1 = i;
+
+                  freq1 = tree[i].freq;
+                }
+              }
+
+/*2. If two elements found create new node*/
+            }
+
+          } while ();
 
         }
       }
