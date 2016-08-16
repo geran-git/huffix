@@ -72,98 +72,116 @@ int main(int argc, char *argv[])
             {
               freq_tbl[buf[i]] += 1;
             }
-
           }
           while (0 == feof(f));
 
-          printf ("Bytes processed: %ld\n", fsize);
-          printf ("Frequency table:\n");
+          printf("Bytes processed: %ld\n", fsize);
+          printf("Frequency table:\n");
           
           for (i = 0; i < 256; i++)
           {
-            printf ("%.2X: %ld ", i, freq_tbl[i]);
+            printf("%.2X: %ld ", i, freq_tbl[i]);
             if ((i+1)%8 == 0) printf("\n");
           }
           /*Scaling frequencies*/
           long scale = fsize / (long)(UINT_MAX)+256L;
           scale =  (scale > 0) ? scale : 1;
 
-
           printf ("Scaled frequency table %ld:\n", scale);
           /*Fill tree leaves*/
-          int j = 0;
+          int tree_cnt = 1;
 
           for (i = 0; i < 256; i++)
           {
             if (freq_tbl[i] > 0) 
             {
-              tree[j].code = i;
-              tree[j].freq = (unsigned int)(freq_tbl[i]/scale)+1u;
-              j++;
+              tree[tree_cnt].code = i;
+              tree[tree_cnt].freq = (unsigned int)(freq_tbl[i]/scale)+1u;
+              tree_cnt++;
 
-              printf ("%.2X: %d ", tree[j-1].code, tree[j-1].freq);
+              printf("%.2X: %d ", tree[tree_cnt-1].code, tree[tree_cnt-1].freq);
 
-              if (j%8 == 0) printf("\n");
+              if (tree_cnt%8 == 0) printf("\n");
             }
           }
+
           /*Building tree*/
-          int imin1, imin2;
+          int i1, i2;
+          int freq1, freq2;
+
           do 
           {
             /*1. Determine two leaves with smallest frequencies*/
-            imin1 = -1;
-            imin2 = -1;
+            i1 = -1;
+            i2 = -1;
             freq1 = 0;
             freq2 = 0;
+            /*i1 - index of node with smallest frequency (for current step)*/
+            /*i2 - index of second node (updated with i1 when i1 changes)*/
+
             for (i = 0; i < tree_cnt; i++)
             {
-              if ((-1 == imin1) && (-1 == imin2))
+              if (0 == tree[i].top)
               {
-               if (tree[i].freq > 0)
-               {
-                  imin1 = i;
-                  freq1 = tree[i].freq;
-               }
-
-              }
-              else if ((imin1 >= 0) && (-1 == imin2))
-              {
-               if (tree[i].freq > 0)
-               {
-                  imin2 = i;
-                  freq2 = tree[i].freq;
-               }
-
-              }
-              else
-              {
-                if (freq1 < tree[i].freq)
+                /*Proceed searching nodes with smallest frequencies*/
+                if ((0 <= i1) && (0 <= i2))
                 {
-                  freq2 = freq1;
-                  imin2 = imin1;
-                  imin1 = i;
-
-                  freq1 = tree[i].freq;
+                  if (freq1 < tree[i].freq)
+                  {
+                    freq2 = freq1;
+                    i2 = i1;
+                    i1 = i;
+                    freq1 = tree[i].freq;
+                  }
                 }
+                else if ((-1 == i1) && (-1 == i2))
+                {
+                  /*Initial value - First node*/
+                  if (tree[i].freq > 0)
+                  {
+                    i1 = i;
+                    freq1 = tree[i].freq;
+                  }
+                }
+                else if ((-1 == i2) && (0 <= i1))
+                {
+                  if (tree[i].freq > 0)
+                  {
+                    /*Initial value - Second node*/
+                    if (tree[i].freq >= freq1)
+                    {
+                      i2 = i;
+                      freq2 = tree[i].freq;
+                    }
+                    else
+                    {
+                      i2 = i1;
+                      freq2 = freq1;
+                      i1 = i;
+                      freq1 = tree[i].freq;
+                    }
+                  }
+                }
+                else
+                  printf("Tried to build a tree, but something went wrong...");                
               }
-
-/*2. If two elements found create new node*/
             }
-            if (0 <= freq1 && 0<= freq2  )
+
+            /*2. If two elements found create new node*/
+            if (0 <= freq1 && 0 <= freq2  )
             {
               tree[tree_cnt].freq = freq1 + freq2;
-              tree[tree_cnt].left = imin1;
-              tree[tree_cnt].right = imin2;
-              tree[imin1].top = tree_cnt;
-              tree[imin2].top = tree_cnt;
+              tree[tree_cnt].left = i1;
+              tree[tree_cnt].right = i2;
+              tree[i1].top = tree_cnt;
+              tree[i2].top = tree_cnt;
               tree_cnt++;
             }
 
-
-
             /*Only one free node found - tree completed */
-          } while (-1 != imin2);
+          } while (-1 != i2);
 
+          printf("\nTree completed, total nodes %d...\n", tree_cnt);
         }
       }
       else
