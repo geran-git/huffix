@@ -11,12 +11,20 @@
 #define TREE_SIZE 512
 struct node 
 {
-  unsigned int top;
+  unsigned int up;
   unsigned int left;
   unsigned int right;
   unsigned int code;
   unsigned int freq;
 } tree[TREE_SIZE] = {0};
+
+/*Table of codes reserved for each symbol*/
+/*Its size based on assumption that max code length could be 255 bits in worst case*/
+/*Codes will be stored in byte sequences, not in bits. I suggest it would be easier*/
+/*to manipulate bytes. Memory consumption not taken into account, so we have 256 bytes*/
+/*for each bit and 1 for code length*/
+
+unsigned char code_tbl[256][256] = {0};
 
 int main(int argc, char *argv[])
 {
@@ -121,7 +129,7 @@ int main(int argc, char *argv[])
 
             for (i = 0; i < tree_cnt; i++)
             {
-              if (0 == tree[i].top)
+              if (0 == tree[i].up)
               {
                 /*Proceed searching nodes with smallest frequencies*/
                 if ((0 <= i1) && (0 <= i2))
@@ -168,13 +176,14 @@ int main(int argc, char *argv[])
             }
 
             /*2. If two elements found create new node*/
+            /*  and add it to the end of array*/
             if (0 <= freq1 && 0 <= freq2  )
             {
               tree[tree_cnt].freq = freq1 + freq2;
               tree[tree_cnt].left = i1;
               tree[tree_cnt].right = i2;
-              tree[i1].top = tree_cnt;
-              tree[i2].top = tree_cnt;
+              tree[i1].up = tree_cnt;
+              tree[i2].up = tree_cnt;
               tree_cnt++;
             }
 
@@ -182,8 +191,41 @@ int main(int argc, char *argv[])
           } while (-1 != i2);
 
           printf("\nTree completed, total nodes %d...\n", tree_cnt);
-        }
-      }
+
+          /*Generate code table*/
+          for (i = 0; i < tree_cnt; i++)
+          {
+            /*For each leave build code sequence*/
+            if (0 == tree[i].left)
+            {
+              unsigned char len = 0;
+              unsigned char node = i;
+
+              while(0 != tree[node].up)
+              {
+                code_tbl[tree[node].code][len+1] = (tree[node].up == tree[tree[node].up].left) ? 0 : 1;
+                node = tree[node].up;
+                len++;
+              }
+              code_tbl[tree[i].code][0] = len;
+
+              /*Bytes now stored in MSB->LSB order, but it would be more convinient*/
+              /*to build bit stream if we put them in LSB->MSB order */
+              if (len >= 2)
+              {
+                unsigned int j = 0;
+                unsigned char temp = 0;
+                for (j = 0; j < len/2; j++)
+                {
+                  temp = code_tbl[tree[i].code][j+1];
+                  code_tbl[tree[i].code][j+1] = code_tbl[tree[i].code][len - j];
+                  code_tbl[tree[i].code][len - j] = temp;
+                }
+              }
+            }
+          }          
+        }/*if (-1 != fseek(f, 0L, SEEK_END))*/
+      } /*if (NULL != f)*/
       else
       {
         printf ("Failed to open %s\n", argv[1]);
