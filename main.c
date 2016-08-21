@@ -21,7 +21,7 @@ struct node
 /*Table of codes reserved for each symbol*/
 /*Its size based on assumption that max code length could be 255 bits in worst case*/
 /*Codes will be stored in byte sequences, not in bits. I suggest it would be easier*/
-/*to manipulate bytes. Memory consumption not taken into account, so we have 256 bytes*/
+/*to manipulate bytes. Memory consumption not taken into account, so we have 255 bytes*/
 /*for each bit and 1 for code length*/
 
 unsigned char code_tbl[256][256] = {0};
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
 
           printf ("Scaled frequency table %ld:\n", scale);
           /*Fill tree leaves*/
-          int tree_cnt = 1;
+          int tree_cnt = 0;
 
           for (i = 0; i < 256; i++)
           {
@@ -112,6 +112,7 @@ int main(int argc, char *argv[])
               if (tree_cnt%8 == 0) printf("\n");
             }
           }
+          printf("\n");
 
           /*Building tree*/
           int i1, i2;
@@ -134,7 +135,7 @@ int main(int argc, char *argv[])
                 /*Proceed searching nodes with smallest frequencies*/
                 if ((0 <= i1) && (0 <= i2))
                 {
-                  if (freq1 < tree[i].freq)
+                  if (freq1 >= tree[i].freq)
                   {
                     freq2 = freq1;
                     i2 = i1;
@@ -177,13 +178,17 @@ int main(int argc, char *argv[])
 
             /*2. If two elements found create new node*/
             /*  and add it to the end of array*/
-            if (0 <= freq1 && 0 <= freq2  )
+            if (0 <= i1 && 0 <= i2  )
             {
               tree[tree_cnt].freq = freq1 + freq2;
               tree[tree_cnt].left = i1;
               tree[tree_cnt].right = i2;
               tree[i1].up = tree_cnt;
               tree[i2].up = tree_cnt;
+
+              printf("Left Node \t[%d] Freq %d Left %d Right %d Up %d\n", i1, tree[i1].freq, tree[i1].left, tree[i1].right, tree[i1].up);         
+              printf("Right Node \t[%d] Freq %d Left %d Right %d Up %d\n", i2, tree[i2].freq, tree[i2].left, tree[i2].right, tree[i2].up);         
+              printf("Up node \t[%d] Freq %d Left %d Right %d Up %d\n", tree_cnt, tree[tree_cnt].freq, tree[tree_cnt].left, tree[tree_cnt].right, tree[tree_cnt].up);
               tree_cnt++;
             }
 
@@ -192,6 +197,8 @@ int main(int argc, char *argv[])
 
           printf("\nTree completed, total nodes %d...\n", tree_cnt);
 
+          
+
           /*Generate code table*/
           for (i = 0; i < tree_cnt; i++)
           {
@@ -199,18 +206,24 @@ int main(int argc, char *argv[])
             if (0 == tree[i].left)
             {
               unsigned char len = 0;
-              unsigned char node = i;
+              unsigned int node = i;
+
+              printf("Code \t[%d] Sequence ", tree[node].code);
 
               while(0 != tree[node].up)
               {
-                code_tbl[tree[node].code][len+1] = (tree[node].up == tree[tree[node].up].left) ? 0 : 1;
+                code_tbl[tree[i].code][len+1] = (node == tree[tree[node].up].left) ? 0 : 1;
                 node = tree[node].up;
                 len++;
+                printf("%d", code_tbl[tree[i].code][len]);
+               /* if (255 == len) break;*/
               }
+
               code_tbl[tree[i].code][0] = len;
 
+              printf(" %d\n", code_tbl[tree[i].code][0]);
               /*Bytes now stored in MSB->LSB order, but it would be more convinient*/
-              /*to build bit stream if we put them in LSB->MSB order */
+              /*to build bit stream if we put them in LSB->MSB order */  
               if (len >= 2)
               {
                 unsigned int j = 0;
@@ -223,7 +236,11 @@ int main(int argc, char *argv[])
                 }
               }
             }
-          }          
+          } /*Generate code table*/
+
+          rewind(f);
+            
+
         }/*if (-1 != fseek(f, 0L, SEEK_END))*/
       } /*if (NULL != f)*/
       else
