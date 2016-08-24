@@ -6,16 +6,23 @@
 #include <strings.h>
 #include <time.h>
 
-
-#define READ_SIZE 256
+#define RD_BUF_SIZE 256
+#define WR_BUF_SIZE 256
+/*Because bits of huffman code represented as 0 and 1 bytes*/
+/*buffer for encoded data must be 8 times bigger than write buffer*/
+#define HF_BUF_SIZE (WR_BUF_SIZE*8) 
 #define TREE_SIZE 512
+
+typedef uchar uchar;
+typedef unsigned int uint;
+
 struct node 
 {
-  unsigned int up;
-  unsigned int left;
-  unsigned int right;
-  unsigned int code;
-  unsigned int freq;
+  uint up;
+  uint left;
+  uint right;
+  uint code;
+  uint freq;
 } tree[TREE_SIZE] = {0};
 
 /*Table of codes reserved for each symbol*/
@@ -24,7 +31,13 @@ struct node
 /*to manipulate bytes. Memory consumption not taken into account, so we have 255 bytes*/
 /*for each bit and 1 for code length*/
 
-unsigned char code_tbl[256][256] = {0};
+uchar code_tbl[256][256] = {0};
+
+/*bit sequence max length*/
+uchar max_len = 0;
+
+/*buffer for byte sequence representation of encoded data*/
+uchar *bit_buf = NULL;
 
 int main(int argc, char *argv[])
 {
@@ -53,7 +66,7 @@ int main(int argc, char *argv[])
       long freq_tbl[256] = {0L};
       long fsize = 0L;
       long l = 0l;
-      unsigned char buf[READ_SIZE] = {0};
+      uchar buf[READ_SIZE] = {0};
       int bytes_read = 0;
       int i = 0;
 
@@ -104,7 +117,7 @@ int main(int argc, char *argv[])
             if (freq_tbl[i] > 0) 
             {
               tree[tree_cnt].code = i;
-              tree[tree_cnt].freq = (unsigned int)(freq_tbl[i]/scale)+1u;
+              tree[tree_cnt].freq = (uint)(freq_tbl[i]/scale)+1u;
               tree_cnt++;
 
               printf("%.2X: %d ", tree[tree_cnt-1].code, tree[tree_cnt-1].freq);
@@ -205,8 +218,8 @@ int main(int argc, char *argv[])
             /*For each leave build code sequence*/
             if (0 == tree[i].left)
             {
-              unsigned char len = 0;
-              unsigned int node = i;
+              uchar len = 0;
+              uint node = i;
 
               printf("Code \t[%d] Sequence ", tree[node].code);
 
@@ -221,13 +234,15 @@ int main(int argc, char *argv[])
 
               code_tbl[tree[i].code][0] = len;
 
+              if (max_len < len) max_len = len;
+
               printf(" %d\n", code_tbl[tree[i].code][0]);
               /*Bytes now stored in MSB->LSB order, but it would be more convinient*/
               /*to build bit stream if we put them in LSB->MSB order */  
               if (len >= 2)
               {
-                unsigned int j = 0;
-                unsigned char temp = 0;
+                uint j = 0;
+                uchar temp = 0;
                 for (j = 0; j < len/2; j++)
                 {
                   temp = code_tbl[tree[i].code][j+1];
@@ -238,7 +253,51 @@ int main(int argc, char *argv[])
             }
           } /*Generate code table*/
 
+
+          bit_buf = malloc(max_len * sizeof(uchar) * READ_SIZE);
           rewind(f);
+
+          uint hf_buf_offset = 0;
+          uchar symbol = 0;
+          uchar code_len = 0;
+          uchar *bit_code_ptr = NULL;
+
+          do
+          {
+            bytes_read = fread(buf, 1, READ_SIZE, f);
+
+            for (i = 0; i < bytes_read; i++)
+            {
+              symbol = buf[i];
+              hcode_len = code_tbl[symbol][0];
+              huf_code_ptr = &(code_tbl[symbol][1]);
+
+              if (hbuf_offset + hcode_len < HF_BUF_SIZE)
+              {
+                memcpy(hf_buf + hf_buf_offset, hf_code_ptr, hf_code_len);
+                hf_buf_offset += hf_code_len;
+              }
+              else
+              {
+                /*Move hbuf contents to write_buf*/
+                /*No need to check buffer overflow cause wr_buf size*/
+                /*depends on hf_buf size*/
+                for (h = 0; h < hf_buf_offset; h += 8)
+                {
+                  wr_buf[h/8] = hf_buf[h    ] * 0x01 + 
+                                hf_buf[h + 1] * 0x02 +
+                                hf_buf[h + 2] * 0x04 +
+                                hf_buf[h + 3] * 0x08 +
+                                hf_buf[h + 4] * 0x10 +
+                                hf_buf[h + 5] * 0x20 +
+                                hf_buf[h + 6] * 0x40 +
+                                hf_buf[h + 7] * 0x80; 
+                }
+                /**/
+              }
+            }
+          }
+          while (0 == feof(f));
             
 
         }/*if (-1 != fseek(f, 0L, SEEK_END))*/
