@@ -2,8 +2,9 @@
 
 */
 #include <stdio.h>
+#include <stdlib.h>
 #include <limits.h>
-#include <strings.h>
+#include <string.h>
 #include <time.h>
 
 #define RD_BUF_SIZE 256
@@ -13,7 +14,7 @@
 #define HF_BUF_SIZE (WR_BUF_SIZE*8) 
 #define TREE_SIZE 512
 
-typedef uchar uchar;
+typedef unsigned char uchar;
 typedef unsigned int uint;
 
 struct node 
@@ -37,13 +38,16 @@ uchar code_tbl[256][256] = {0};
 uchar max_len = 0;
 
 /*buffer for byte sequence representation of encoded data*/
-uchar *bit_buf = NULL;
+uchar *hf_buf = NULL;
 
 int main(int argc, char *argv[])
 {
   int count;
   time_t time1, time2;
   char* c_time_string;
+
+  uchar rd_buf[RD_BUF_SIZE] = {0};
+  uchar wr_buf[WR_BUF_SIZE] = {0};
 
     /* Obtain current time. */
   time1 = time(NULL);
@@ -66,19 +70,19 @@ int main(int argc, char *argv[])
       long freq_tbl[256] = {0L};
       long fsize = 0L;
       long l = 0l;
-      uchar buf[READ_SIZE] = {0};
       int bytes_read = 0;
       int i = 0;
 
-      FILE *f = fopen(argv[1], "r");
-      if (NULL != f)
+      FILE *f_in = fopen(argv[1], "r");
+
+      if (NULL != f_in)
       {
       /*Read file and count data frequency*/
         printf ("Compressing %s, please wait...\n", argv[1]);
-        if (-1 != fseek(f, 0L, SEEK_END))
+        if (-1 != fseek(f_in, 0L, SEEK_END))
         {
-          fsize = ftell(f);
-          rewind(f);
+          fsize = ftell(f_in);
+          rewind(f_in);
           printf ("File size: %ld bytes\n", fsize);
           /*!!!ADD NOTHING TO COMPRESS MESSAGE!!!*/
 
@@ -86,15 +90,15 @@ int main(int argc, char *argv[])
 
           do
           {
-            bytes_read = fread(buf, 1, READ_SIZE, f);
+            bytes_read = fread(rd_buf, 1, RD_BUF_SIZE, f_in);
             fsize += bytes_read;
 
             for (i = 0; i < bytes_read; i++)
             {
-              freq_tbl[buf[i]] += 1;
+              freq_tbl[rd_buf[i]] += 1;
             }
           }
-          while (0 == feof(f));
+          while (0 == feof(f_in));
 
           printf("Bytes processed: %ld\n", fsize);
           printf("Frequency table:\n");
@@ -254,25 +258,29 @@ int main(int argc, char *argv[])
           } /*Generate code table*/
 
 
-          bit_buf = malloc(max_len * sizeof(uchar) * READ_SIZE);
-          rewind(f);
+          hf_buf = malloc(sizeof(uchar) * HF_BUF_SIZE);
+
+          rewind(f_in);
+
+          FILE *f_out = fopen(argv[3], "w");
 
           uint hf_buf_offset = 0;
           uchar symbol = 0;
-          uchar code_len = 0;
-          uchar *bit_code_ptr = NULL;
+          uchar hf_code_len = 0;
+          uchar *hf_code_ptr = NULL;
+          int h = 0;
 
           do
           {
-            bytes_read = fread(buf, 1, READ_SIZE, f);
+            bytes_read = fread(rd_buf, 1, RD_BUF_SIZE, f_in);
 
             for (i = 0; i < bytes_read; i++)
             {
-              symbol = buf[i];
-              hcode_len = code_tbl[symbol][0];
-              huf_code_ptr = &(code_tbl[symbol][1]);
+              symbol = rd_buf[i];
+              hf_code_len = code_tbl[symbol][0];
+              hf_code_ptr = &(code_tbl[symbol][1]);
 
-              if (hbuf_offset + hcode_len < HF_BUF_SIZE)
+              if (hf_buf_offset + hf_code_len < HF_BUF_SIZE)
               {
                 memcpy(hf_buf + hf_buf_offset, hf_code_ptr, hf_code_len);
                 hf_buf_offset += hf_code_len;
@@ -297,15 +305,15 @@ int main(int argc, char *argv[])
                 /*and updating hf_buf_offset accordingly*/
                 if (h > hf_buf_offset)
                 {
-                  memmove(hf_buf, hfbuf+(h-8), hf_buf_offset-(h-8));
+                  memmove(hf_buf, hf_buf+(h-8), hf_buf_offset-(h-8));
                   hf_buf_offset -= h;
                 }
 
-                fwrite(f_out, wr_buf, h/8);
+                fwrite(wr_buf, 1, h/8, f_out);
               }
             }
           }
-          while (0 == feof(f));
+          while (0 == feof(f_in));
 
           /*Check if data left in hf_buf, append bits to full byte if necessary*/
           if (hf_buf_offset > 0)
@@ -318,7 +326,7 @@ int main(int argc, char *argv[])
                                  hf_buf[5] * 0x20 +
                                  hf_buf[6] * 0x40 +
                                  hf_buf[7] * 0x80) & 0xFF;            
-                fwrite(f_out, wr_buf, 1);
+                fwrite(wr_buf, 1, 1, f_out);
           }
 
 
