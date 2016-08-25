@@ -279,25 +279,51 @@ int main(int argc, char *argv[])
               }
               else
               {
-                /*Move hbuf contents to write_buf*/
+                /*Move hf_buf contents to wr_buf*/
                 /*No need to check buffer overflow cause wr_buf size*/
                 /*depends on hf_buf size*/
                 for (h = 0; h < hf_buf_offset; h += 8)
                 {
-                  wr_buf[h/8] = hf_buf[h    ] * 0x01 + 
-                                hf_buf[h + 1] * 0x02 +
-                                hf_buf[h + 2] * 0x04 +
-                                hf_buf[h + 3] * 0x08 +
-                                hf_buf[h + 4] * 0x10 +
-                                hf_buf[h + 5] * 0x20 +
-                                hf_buf[h + 6] * 0x40 +
-                                hf_buf[h + 7] * 0x80; 
+                  wr_buf[h/8] = (hf_buf[h    ] * 0x01 + 
+                                 hf_buf[h + 1] * 0x02 +
+                                 hf_buf[h + 2] * 0x04 +
+                                 hf_buf[h + 3] * 0x08 +
+                                 hf_buf[h + 4] * 0x10 +
+                                 hf_buf[h + 5] * 0x20 +
+                                 hf_buf[h + 6] * 0x40 +
+                                 hf_buf[h + 7] * 0x80) & 0xFF; 
                 }
-                /**/
+                /*if 7 (or less) bytes left in hf_buf moving them to the zero index*/
+                /*and updating hf_buf_offset accordingly*/
+                if (h > hf_buf_offset)
+                {
+                  memmove(hf_buf, hfbuf+(h-8), hf_buf_offset-(h-8));
+                  hf_buf_offset -= h;
+                }
+
+                fwrite(f_out, wr_buf, h/8);
               }
             }
           }
           while (0 == feof(f));
+
+          /*Check if data left in hf_buf, append bits to full byte if necessary*/
+          if (hf_buf_offset > 0)
+          {
+                  wr_buf[0] = (hf_buf[0    ] * 0x01 + 
+                                 hf_buf[1] * 0x02 +
+                                 hf_buf[2] * 0x04 +
+                                 hf_buf[3] * 0x08 +
+                                 hf_buf[4] * 0x10 +
+                                 hf_buf[5] * 0x20 +
+                                 hf_buf[6] * 0x40 +
+                                 hf_buf[7] * 0x80) & 0xFF;            
+                fwrite(f_out, wr_buf, 1);
+          }
+
+
+          fclose(f_in);
+          fclose(f_out);
             
 
         }/*if (-1 != fseek(f, 0L, SEEK_END))*/
