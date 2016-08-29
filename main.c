@@ -385,7 +385,56 @@ int main(int argc, char *argv[])
   	{
   		/*Going to extract*/
   		printf ("Extracting, please wait...\n");
-    
+
+      int bytes_read = 0;
+      int iCnt = 0;
+
+      FILE *f_in = fopen(argv[1], "r");
+      bytes_read = fread(rd_buf, 1, 6, f_in);
+      if (6 == bytes_read)
+      {
+        if ('h' == rd_buf[0] &&
+            'f' == rd_buf[1] &&
+            'x' == rd_buf[2] &&
+            'h'^0xFF == rd_buf[3] &&
+            'f'^0xFF == rd_buf[4] &&
+            'x'^0xFF == rd_buf[5])
+        {
+          /*Reading code table*/
+          for (int iCnt = 0; i < 256; iCnt++)
+          {
+            if (2 == fread(rd_buf, 1, 2, f_in))
+            {
+              hf_code_len = rd_buf[1];
+              if (hf_code_len > 0)
+                if(hf_code_len = fread(rd_buf, 1, hf_code_len, f_in))
+                  memcpy(&(code_tbl[symbol][1]), rd_buf[0], hf_code_len);
+            }            
+          }
+          
+          do
+          {
+            bytes_read = fread(rd_buf, 1, RD_BUF_SIZE, f_in);
+            fsize += bytes_read;
+
+            for (iCnt = 0; iCnt < bytes_read; iCnt++)
+            {
+              freq_tbl[rd_buf[iCnt]] += 1;
+            }
+          }
+          while (0 == feof(f_in));
+
+        }
+        else
+        {
+          printf("Wrong archive file %s\n", argv[1]);    
+        }
+      }
+      else
+      {
+        printf("Error reading file %s\n", argv[1]);
+      }
+
   	}
   	else
   	{
