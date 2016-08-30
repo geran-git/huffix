@@ -316,7 +316,7 @@ int main(int argc, char *argv[])
                 /*No need to check buffer overflow cause wr_buf size*/
                 /*depends on hf_buf size*/
                 //printf("Flush %d bytes \n", hf_buf_offset);
-                for (h = 0; h < hf_buf_offset; h += 8)
+                for (h = 0; (h+8) <= hf_buf_offset; h += 8)
                 {
                   wr_buf[h/8] = (hf_buf[h    ] * 0x80 + 
                                  hf_buf[h + 1] * 0x40 +
@@ -331,16 +331,27 @@ int main(int argc, char *argv[])
                 //printf("Bytes left %d\n", hf_buf_offset);
                 /*if 7 (or less) bytes left in hf_buf moving them to the zero index*/
                 /*and updating hf_buf_offset accordingly*/
-                if (h > hf_buf_offset)
+/*                if (h > hf_buf_offset)
                 {
                   memmove(hf_buf, hf_buf+(h-8), hf_buf_offset-(h-8));
                   hf_buf_offset -= (h-8);
                 }
                 else 
                   hf_buf_offset = 0;
+*/
+                if (h < hf_buf_offset)
+                {
+                  memmove(hf_buf, hf_buf+h, hf_buf_offset-h);
+                  hf_buf_offset -= h;
+                }
+                else 
+                  hf_buf_offset = 0;
+
 
                 fwrite(wr_buf, 1, h/8, f_out);
 
+                memcpy(hf_buf + hf_buf_offset, hf_code_ptr, hf_code_len);
+                hf_buf_offset += hf_code_len;
                 //printf("Bytes left %d\n", hf_buf_offset);
               }
             }
@@ -350,17 +361,7 @@ int main(int argc, char *argv[])
           /*Check if data left in hf_buf, append bits to full byte if necessary*/
           if (hf_buf_offset > 0)
           {
-/*                  wr_buf[0] = (hf_buf[0] * 0x80 + 
-                               hf_buf[1] * 0x40 +
-                               hf_buf[2] * 0x20 +
-                               hf_buf[3] * 0x10 +
-                               hf_buf[4] * 0x08 +
-                               hf_buf[5] * 0x04 +
-                               hf_buf[6] * 0x02 +
-                               hf_buf[7] * 0x01) & 0xFF;            
-
-                fwrite(wr_buf, 1, 1, f_out);*/
-                for (h = 0; h < hf_buf_offset; h += 8)
+                for (h = 0; (h+8) <= hf_buf_offset; h += 8)
                 {
                   wr_buf[h/8] = (hf_buf[h    ] * 0x80 + 
                                  hf_buf[h + 1] * 0x40 +
@@ -375,12 +376,12 @@ int main(int argc, char *argv[])
 
                 fwrite(wr_buf, 1, h/8, f_out);
 
-                if (h > hf_buf_offset)
+                if (h < hf_buf_offset && h > 0)
                 {
-                  memmove(hf_buf, hf_buf+(h-8), hf_buf_offset-(h-8));
-                  hf_buf_offset -= (h-8);
+                  memmove(hf_buf, hf_buf+h, hf_buf_offset-h);
+                  hf_buf_offset -= h;
 
-                               wr_buf[0] = (hf_buf[0] * 0x80 + 
+                  wr_buf[0] = (hf_buf[0] * 0x80 + 
                                hf_buf[1] * 0x40 +
                                hf_buf[2] * 0x20 +
                                hf_buf[3] * 0x10 +
@@ -483,7 +484,7 @@ int main(int argc, char *argv[])
           }
           while (0 == feof(f_in));
 
-          printf("Bytes processed %ld\n", l );
+          //printf("Bytes processed %ld\n", l );
           if (wr_buf_offset > 0)
             fwrite(wr_buf, 1, wr_buf_offset, f_out);
 
